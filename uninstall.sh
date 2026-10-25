@@ -15,7 +15,7 @@ apt-get update
 
 restore /etc/modprobe.d/v4l2-relayd.conf
 restore /etc/v4l2-relayd.d/default.conf
-rm -f /etc/initramfs-tools/hooks/ipu6-firmware
+rm -f /etc/dracut.conf.d/90-ipu6-firmware.conf
 update-initramfs -u -k all
 
 if [ -n "${SUDO_USER:-}" ]; then

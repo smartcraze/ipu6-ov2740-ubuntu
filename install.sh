@@ -56,18 +56,21 @@ CARD_LABEL=${RELAY_LABEL}
 SPLASHSRC="videotestsrc pattern=black num-buffers=4 ! videoscale ! videoconvert"
 CONF
 
-echo "==> Adding the IPU6 firmware to the initramfs (the driver loads before the root fs is mounted)"
-cat > /etc/initramfs-tools/hooks/ipu6-firmware <<HOOK
-#!/bin/sh
-PREREQ=""
-prereqs() { echo "\$PREREQ"; }
-case "\$1" in prereqs) prereqs; exit 0;; esac
-. /usr/share/initramfs-tools/hook-functions
-add_firmware ${FW_FILE}
-exit 0
-HOOK
-chmod 755 /etc/initramfs-tools/hooks/ipu6-firmware
+echo "==> Adding the IPU6 firmware to the boot image (dracut builds it on Ubuntu 26.04)"
+# intel_ipu6 does not declare its firmware (modinfo -F firmware is empty), so dracut never
+# copies it; the driver then probes in the initramfs, fails with -ENOENT, and the camera is gone.
+FW_PATH=""
+for f in "/usr/lib/firmware/${FW_FILE}" "/usr/lib/firmware/${FW_FILE}.zst" "/usr/lib/firmware/${FW_FILE}.xz"; do
+    [ -e "$f" ] && { FW_PATH="$f"; break; }
+done
+[ -n "${FW_PATH}" ] || { echo "Firmware ${FW_FILE} not found under /usr/lib/firmware" >&2; exit 1; }
+mkdir -p /etc/dracut.conf.d
+cat > /etc/dracut.conf.d/90-ipu6-firmware.conf <<CONF
+install_items+=" ${FW_PATH} "
+CONF
 update-initramfs -u -k all
+lsinitramfs "/boot/initrd.img-$(uname -r)" | grep -F "${FW_PATH#/}" > /dev/null \
+    || { echo "Firmware is not in the boot image; the camera will fail after reboot." >&2; exit 1; }
 
 echo "==> Hiding the raw sensor nodes and libcamera camera from PipeWire for ${SUDO_USER}"
 USER_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"

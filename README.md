@@ -21,7 +21,7 @@ it uses the chip's hardware ISP with Intel's tuning data.
 | `v4l2-relayd` + `v4l2loopback` | Exposes Intel's pipeline as a normal webcam named "Intel MIPI Camera". |
 | Placeholder `SPLASHSRC` | Without it the loopback device looks output-only and PipeWire offers no camera. |
 | One consistent `card_label` | Ubuntu's default ("Virtual Camera") conflicted with the PPA's, and the relay service could not find its device. |
-| initramfs hook adding `ipu6ep_fw.bin` | The IPU6 driver loads in early boot; without the firmware there it fails and the camera is gone after every reboot. |
+| dracut config adding `ipu6ep_fw.bin` to the boot image | `intel_ipu6` does not declare its firmware, so dracut (which builds the initramfs on Ubuntu 26.04) leaves it out. The driver probes in early boot, fails with `-ENOENT`, and the camera is gone after every reboot. |
 | WirePlumber rules | Hide the raw sensor nodes and libcamera camera so apps (Snapshot, browsers) only see the working one. |
 
 ## Install
@@ -59,8 +59,11 @@ colours; judge it yourself on your own camera.
 - The PPA is a **development PPA** and unsupported. If the camera breaks after a kernel update,
   first try `sudo apt install linux-modules-ipu6-generic-hwe-26.04` and reboot.
 - Only Ubuntu 26.04 is tested (`FORCE=1` skips the version check).
-- `install.sh` and `apply-acer-tuning.sh` were written from the steps that worked on one machine;
-  the scripts themselves have not been run end to end on a clean install.
+- Verified on one machine: the camera comes up on its own after reboot (driver, firmware and
+  relay all start at boot). `install.sh` and `apply-acer-tuning.sh` were written from those
+  steps but have not been run end to end on a clean install.
+- Ubuntu 26.04 builds the initramfs with **dracut**; hooks in `/etc/initramfs-tools/hooks/` are
+  not used. That is why the firmware fix is a file in `/etc/dracut.conf.d/`.
 
 ## Uninstall
 
